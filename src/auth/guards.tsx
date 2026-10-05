@@ -11,7 +11,7 @@ import { useAuth } from './AuthContext';
  */
 export function safeNext(next: string | null): string {
   if (!next || next.startsWith('//')) return '/app';
-  return next.startsWith('/app') || next.startsWith('/invite/') ? next : '/app';
+  return next.startsWith('/app') || next.startsWith('/invite?') ? next : '/app';
 }
 
 /** Dashboard routes; bounces to /login and remembers where to return. */
@@ -22,7 +22,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      // Keep the query string: it carries the org (and project) id.
+      const here = `${pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
     }
   }, [isLoading, isAuthenticated, router, pathname]);
 

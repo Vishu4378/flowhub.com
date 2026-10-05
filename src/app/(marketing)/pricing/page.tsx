@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { PlanCard } from '@/components/PlanCard';
+import { PricingPlans } from '@/components/PricingPlans';
+import { API_URL } from '@/lib/api';
 import type { Plan } from '@/lib/types';
 
 export const metadata: Metadata = {
@@ -9,14 +9,14 @@ export const metadata: Metadata = {
   alternates: { canonical: '/pricing' },
 };
 
-// Regenerated in the background at most every 5 minutes (ISR), so price
-// changes show up without a redeploy while the page stays static.
-export const revalidate = 300;
-
+/**
+ * Plans are fetched at build time so the prices are in the HTML for search
+ * engines; PricingPlans then refreshes them in the browser, so a price change
+ * shows up without waiting for the next deploy.
+ */
 async function getPlans(): Promise<Plan[] | null> {
-  const base = process.env.API_PROXY_URL ?? 'http://localhost:3000';
   try {
-    const res = await fetch(`${base}/api/billing/plans`, { next: { revalidate } });
+    const res = await fetch(`${API_URL}/api/billing/plans`, { cache: 'force-cache' });
     return res.ok ? ((await res.json()) as Plan[]) : null;
   } catch {
     return null;
@@ -47,33 +47,7 @@ export default async function PricingPage() {
         <p className="mt-4 text-lg text-slate-600">Start free. Upgrade when your team grows.</p>
       </div>
 
-      {plans ? (
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              highlighted={plan.id === 'pro'}
-              action={
-                <Link
-                  href="/register"
-                  className={`block rounded-md px-3 py-2 text-center text-sm font-semibold ${
-                    plan.id === 'pro'
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-                      : 'text-slate-700 ring-1 ring-slate-300 ring-inset hover:bg-slate-50'
-                  }`}
-                >
-                  {plan.priceMonthly === 0 ? 'Get started' : `Start with ${plan.name}`}
-                </Link>
-              }
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="mt-14 text-center text-slate-500">
-          Pricing is temporarily unavailable. <Link href="/register" className="font-medium text-indigo-600">Start for free</Link>.
-        </p>
-      )}
+      <PricingPlans initialPlans={plans} />
 
       <section aria-labelledby="faq" className="mx-auto mt-24 max-w-3xl">
         <h2 id="faq" className="text-2xl font-semibold tracking-tight text-slate-900">Frequently asked questions</h2>

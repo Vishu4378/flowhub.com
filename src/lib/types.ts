@@ -16,6 +16,8 @@ export interface Organization {
   slug: string;
   role: OrgRole;
   createdAt: string;
+  suspendedAt?: string | null;
+  suspendedReason?: string | null;
 }
 
 export interface Member {
@@ -35,6 +37,9 @@ export interface Project {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Display prefix of the project's API key, or null if none yet. */
+  apiKeyPrefix?: string | null;
+  apiKeyCreatedAt?: string | null;
 }
 
 export interface Session {
@@ -45,6 +50,7 @@ export interface Session {
 export interface Me {
   user: User;
   organizations: Organization[];
+  isSuperAdmin?: boolean;
 }
 
 export interface Invitation {
@@ -140,4 +146,55 @@ export interface AnalyticsOverview {
   };
   projectsCreatedByWeek: { weekStart: string; count: number }[];
   activityByType: { type: string; count: number }[];
+}
+
+// ---------- super admin ----------
+
+export interface Paged<T> {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: T[];
+}
+
+export interface AdminStats {
+  organizations: { total: number; suspended: number; paying: number; byPlan: Record<string, number> };
+  users: { total: number; signupsLast30Days: number };
+  projects: { total: number };
+  revenue: { mrr: number; currency: string; last30Days: { currency: string; amount: number }[] };
+  signupsByWeek: { weekStart: string; count: number }[];
+}
+
+export interface AdminOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  suspendedAt: string | null;
+  suspendedReason: string | null;
+  members: number;
+  projects: number;
+  plan: PlanId;
+  subscriptionStatus: SubscriptionStatus;
+}
+
+export interface AdminActivity extends ActivityEntry {
+  organizationId: string;
+  organizationName: string;
+}
+
+export interface AdminOrganizationDetail extends Omit<AdminOrganization, 'members'> {
+  currentPeriodEnd: string | null;
+  members: { userId: string; name: string; email: string; role: OrgRole }[];
+  activity: AdminActivity[];
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  emailVerifiedAt: string | null;
+  createdAt: string;
+  organizations: number;
+  isSuperAdmin: boolean;
 }

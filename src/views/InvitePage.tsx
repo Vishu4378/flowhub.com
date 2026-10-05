@@ -2,29 +2,32 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { meQueryKey, useAuth } from '@/auth/AuthContext';
 import { Button, ErrorNotice, PageLoader } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { api } from '@/lib/api';
+import { routes } from '@/lib/routes';
 
 const linkClass = 'font-medium text-indigo-600 hover:text-indigo-500';
 
 /** Landing page for emailed invite links; works signed in or out. */
-export function InvitePage({ token }: { token: string }) {
+export function InvitePage() {
+  const token = useSearchParams().get('token') ?? '';
   const { me, isAuthenticated, isLoading, signOut } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
   const invite = useQuery({
     queryKey: ['invite', token],
     queryFn: () => api.invitations.preview(token),
+    enabled: !!token,
     retry: false,
   });
   const accept = useMutation({
     mutationFn: () => api.invitations.accept(token),
     onSuccess: async ({ organizationId }) => {
       await qc.invalidateQueries({ queryKey: meQueryKey });
-      router.replace(`/app/orgs/${organizationId}/overview`);
+      router.replace(routes.org(organizationId, 'overview'));
     },
   });
 
@@ -39,7 +42,7 @@ export function InvitePage({ token }: { token: string }) {
   }
 
   const data = invite.data;
-  const here = `/invite/${token}`;
+  const here = routes.invite(token);
   const wrongAccount = isAuthenticated && me?.user.email !== data.email;
 
   return (

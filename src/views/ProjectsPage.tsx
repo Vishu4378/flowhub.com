@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Badge,
   Button,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui';
 import { timeAgo } from '@/lib/format';
 import { useCreateProject, useProjects } from '@/lib/queries';
+import { routes } from '@/lib/routes';
 import type { ProjectStatus } from '@/lib/types';
 import { useOrg } from '@/lib/useOrg';
 
@@ -30,7 +31,6 @@ export function ProjectsPage() {
   const org = useOrg();
   const params = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
   const status = (params.get('status') as ProjectStatus | null) ?? 'active';
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search.trim());
@@ -54,7 +54,9 @@ export function ProjectsPage() {
               key={tab.value}
               role="tab"
               aria-selected={status === tab.value}
-              onClick={() => router.replace(tab.value === 'active' ? pathname : `${pathname}?status=${tab.value}`)}
+              onClick={() =>
+                router.replace(routes.org(org.id, 'projects', tab.value === 'active' ? {} : { status: tab.value }))
+              }
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                 status === tab.value ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -93,7 +95,7 @@ export function ProjectsPage() {
           {list.map((project) => (
             <Link
               key={project.id}
-              href={`/app/orgs/${org.id}/projects/${project.id}`}
+              href={routes.project(org.id, project.id)}
               className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50"
             >
               <div className="min-w-0">

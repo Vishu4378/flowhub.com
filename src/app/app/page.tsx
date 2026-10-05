@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { PageLoader } from '@/components/ui';
 import { lastOrg } from '@/lib/lastOrg';
+import { routes } from '@/lib/routes';
 
 /** Sends the user to their last-used organization, or prompts them to create one. */
 export default function AppHome() {
@@ -20,7 +21,7 @@ export default function AppHome() {
     }
     const last = lastOrg();
     const target = organizations.find((o) => o.id === last) ?? organizations[0]!;
-    router.replace(`/app/orgs/${target.id}/overview`);
+    router.replace(routes.org(target.id, 'overview'));
   }, [me, router]);
 
   return <PageLoader fullScreen />;

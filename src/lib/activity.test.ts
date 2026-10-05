@@ -21,6 +21,13 @@ describe('describeActivity', () => {
     ).toBe('Ada made Bob an admin');
   });
 
+  it('describes suspensions with their reason', () => {
+    expect(describeActivity(entry({ type: 'organization.suspended', meta: { reason: 'Unpaid' } }))).toBe(
+      'Organization suspended: Unpaid',
+    );
+    expect(describeActivity(entry({ type: 'organization.unsuspended' }))).toBe('Organization reinstated');
+  });
+
   it('copes with entries that have no meta', () => {
     expect(describeActivity(entry({ type: 'organization.created', meta: undefined }))).toBe('Ada created the organization');
   });

@@ -18,6 +18,7 @@ export function SettingsPage() {
         <ProfileSection />
         <PasswordSection />
         <OrganizationSection />
+        <AccountSection />
       </div>
     </>
   );
@@ -175,6 +176,76 @@ function OrganizationSection() {
             </Button>
           </div>
         </div>
+      </Modal>
+    </>
+  );
+}
+
+function AccountSection() {
+  const { signOut } = useAuth();
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [password, setPassword] = useState('');
+  const exportData = useMutation({
+    mutationFn: api.auth.exportAccount,
+    onSuccess: (data) => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'flowhub-account.json' });
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+  const remove = useMutation({
+    mutationFn: api.auth.deleteAccount,
+    onSuccess: () => {
+      signOut();
+      router.replace('/');
+    },
+  });
+
+  return (
+    <>
+      <Section title="Your account" description="Download your data or delete your account.">
+        <div className="space-y-4">
+          <ErrorNotice error={exportData.error} />
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" loading={exportData.isPending} onClick={() => exportData.mutate()}>
+              Download my data
+            </Button>
+            <Button variant="danger" onClick={() => setConfirming(true)}>
+              Delete my account
+            </Button>
+          </div>
+        </div>
+      </Section>
+
+      <Modal open={confirming} onClose={() => setConfirming(false)} title="Delete your account?">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            remove.mutate(password);
+          }}
+        >
+          <p className="text-sm text-slate-600">
+            This permanently deletes your account. Organizations where you are the only member are deleted too.
+            If you are the only owner of a team, make someone else an owner first.
+          </p>
+          <ErrorNotice error={remove.error} />
+          <Field label="Confirm with your password">
+            {(id) => (
+              <Input id={id} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            )}
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" loading={remove.isPending}>
+              Delete forever
+            </Button>
+          </div>
+        </form>
       </Modal>
     </>
   );

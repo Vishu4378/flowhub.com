@@ -4,8 +4,8 @@ vi.mock('next/navigation', () => ({ useRouter: vi.fn(), usePathname: vi.fn() }))
 
 describe('safeNext', () => {
   it('allows dashboard and invite paths', () => {
-    expect(safeNext('/app/orgs/1/projects')).toBe('/app/orgs/1/projects');
-    expect(safeNext('/invite/abc')).toBe('/invite/abc');
+    expect(safeNext('/app/projects?org=1')).toBe('/app/projects?org=1');
+    expect(safeNext('/invite?token=abc')).toBe('/invite?token=abc');
   });
 
   it('falls back to /app for anything else', () => {

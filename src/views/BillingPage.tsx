@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { PlanCard } from '@/components/PlanCard';
 import { Badge, Button, Card, ErrorNotice, PageHeader, PageLoader, SuccessNotice } from '@/components/ui';
@@ -9,6 +9,7 @@ import { canManage, formatDate, formatMoney } from '@/lib/format';
 import { keys, useBilling, useBillingPortal, useCheckout, usePayments, usePlans } from '@/lib/queries';
 import type { BillingOverview, SubscriptionStatus } from '@/lib/types';
 import { useOrg } from '@/lib/useOrg';
+import { routes } from '@/lib/routes';
 
 const STATUS: Record<SubscriptionStatus, { label: string; tone: 'green' | 'amber' | 'slate' }> = {
   none: { label: 'Free', tone: 'slate' },
@@ -103,7 +104,6 @@ export function BillingPage() {
 function useCheckoutResult(orgId: string) {
   const params = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
   const qc = useQueryClient();
   const result = params.get('checkout');
 
@@ -119,9 +119,9 @@ function useCheckoutResult(orgId: string) {
 
   useEffect(() => {
     if (!result) return;
-    const t = setTimeout(() => router.replace(pathname), 15_000);
+    const t = setTimeout(() => router.replace(routes.org(orgId, 'billing')), 15_000);
     return () => clearTimeout(t);
-  }, [result, router, pathname]);
+  }, [result, router, orgId]);
 
   return result;
 }

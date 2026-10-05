@@ -13,6 +13,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { ApiError } from '@/lib/api';
+import { routes } from '@/lib/routes';
 import { OrgContext } from '@/lib/useOrg';
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
@@ -141,7 +142,7 @@ export function ErrorNotice({ error }: { error: unknown }) {
       {planLimit && org && (
         <>
           {' '}
-          <Link href={`/app/orgs/${org.id}/billing`} className="font-semibold underline">
+          <Link href={routes.org(org.id, 'billing')} className="font-semibold underline">
             See plans
           </Link>
         </>

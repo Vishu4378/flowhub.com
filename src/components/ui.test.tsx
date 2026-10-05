@@ -19,6 +19,6 @@ describe('ErrorNotice', () => {
       </OrgContext>,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('The Free plan allows up to 3 projects.');
-    expect(screen.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/app/orgs/org1/billing');
+    expect(screen.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/app/billing?org=org1');
   });
 });

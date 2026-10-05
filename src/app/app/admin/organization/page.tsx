@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
 import { PageLoader } from '@/components/ui';
-import { BillingPage } from '@/views/BillingPage';
+import { AdminOrganizationPage } from '@/views/admin/AdminOrganizationPage';
 
 export default function Page() {
   return (
     <Suspense fallback={<PageLoader />}>
-      <BillingPage />
+      <AdminOrganizationPage />
     </Suspense>
   );
 }

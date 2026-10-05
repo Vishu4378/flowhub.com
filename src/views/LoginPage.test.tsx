@@ -8,7 +8,7 @@ import { LoginPage } from './LoginPage';
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams('next=/app/orgs/o1/members'),
+  useSearchParams: () => new URLSearchParams(`next=${encodeURIComponent('/app/members?org=o1')}`),
   usePathname: () => '/login',
 }));
 
@@ -38,7 +38,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'password123');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/app/orgs/o1/members'));
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/app/members?org=o1'));
     expect(tokenStore.get()).toBe('tok');
   });
 

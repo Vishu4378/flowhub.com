@@ -1,39 +1,20 @@
-# ---- deps: install with the lockfile ----
-FROM node:24-alpine AS deps
+# Optional: self-host the static site with nginx (Cloudflare Pages is the
+# default deploy). NEXT_PUBLIC_* values are baked in at build time.
+FROM node:24-alpine AS build
 WORKDIR /app
 RUN npm install -g pnpm@11.9.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
-
-# ---- build: compile the standalone server ----
-FROM node:24-alpine AS build
-WORKDIR /app
-RUN npm install -g pnpm@11.9.0
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Rewrites (and NEXT_PUBLIC_*) are baked in at build time, so they are build args.
-ARG API_PROXY_URL=http://api:3000
+ARG NEXT_PUBLIC_API_URL=https://api.flowhub.com
 ARG NEXT_PUBLIC_SITE_URL=https://flowhub.com
-ENV API_PROXY_URL=$API_PROXY_URL \
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
-# ---- runtime: only the standalone output ----
-FROM node:24-alpine
-WORKDIR /app
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
-    HOSTNAME=0.0.0.0
-# Pricing is regenerated at runtime (ISR) and fetches the API directly.
-ARG API_PROXY_URL=http://api:3000
-ENV API_PROXY_URL=$API_PROXY_URL
-COPY --from=build /app/public ./public
-COPY --from=build --chown=node:node /app/.next/standalone ./
-COPY --from=build --chown=node:node /app/.next/static ./.next/static
-USER node
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ >/dev/null || exit 1
-CMD ["node", "server.js"]
+FROM nginx:alpine
+COPY --from=build /app/out /usr/share/nginx/html
+# /login → login.html, unknown paths → the generated 404 page.
+RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  location / { try_files $uri $uri.html $uri/ =404; }\n  error_page 404 /404.html;\n}\n' > /etc/nginx/conf.d/default.conf
+EXPOSE 80

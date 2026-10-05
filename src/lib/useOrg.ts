@@ -3,7 +3,7 @@
 import { createContext, use } from 'react';
 import type { Organization } from './types';
 
-/** The organization of the current /app/orgs/[orgId] route, provided by its layout. */
+/** The organization named by ?org= on /app/<page> routes, provided by DashboardShell. */
 export const OrgContext = createContext<Organization | null>(null);
 
 export function useOrg(): Organization {

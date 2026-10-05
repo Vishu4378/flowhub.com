@@ -19,7 +19,7 @@ describe('api client', () => {
     const fetch = mockFetch(201, { id: 'p1' });
     await api.projects.create('org1', { name: 'X' });
     const [url, init] = fetch.mock.calls[0];
-    expect(url).toBe('/api/organizations/org1/projects');
+    expect(url).toBe('http://localhost:3000/api/organizations/org1/projects');
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer tok');
     expect(JSON.parse(init.body)).toEqual({ name: 'X' });
@@ -30,8 +30,8 @@ describe('api client', () => {
     await api.projects.list('o', {});
     await api.projects.list('o', { status: 'archived', search: 'web site' });
     expect(fetch.mock.calls.map((c) => c[0])).toEqual([
-      '/api/organizations/o/projects',
-      '/api/organizations/o/projects?status=archived&search=web+site',
+      'http://localhost:3000/api/organizations/o/projects',
+      'http://localhost:3000/api/organizations/o/projects?status=archived&search=web+site',
     ]);
   });
 

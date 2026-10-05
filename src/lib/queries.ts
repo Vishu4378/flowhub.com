@@ -90,7 +90,11 @@ export function useProjects(orgId: string, filters: { status?: ProjectStatus; se
 }
 
 export function useProject(orgId: string, id: string) {
-  return useQuery({ queryKey: keys.project(orgId, id), queryFn: () => api.projects.get(orgId, id) });
+  return useQuery({
+    queryKey: keys.project(orgId, id),
+    queryFn: () => api.projects.get(orgId, id),
+    enabled: !!id,
+  });
 }
 
 export function useCreateProject(orgId: string) {
@@ -110,6 +114,14 @@ export function useUpdateProject(orgId: string, id: string) {
       qc.setQueryData(keys.project(orgId, id), project);
       return qc.invalidateQueries({ queryKey: keys.projects(orgId) });
     },
+  });
+}
+
+export function useRotateApiKey(orgId: string, id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.projects.rotateApiKey(orgId, id),
+    onSuccess: ({ project }) => qc.setQueryData(keys.project(orgId, id), project),
   });
 }
 
@@ -229,5 +241,62 @@ export function useActivity(orgId: string) {
     queryFn: ({ pageParam }) => api.analytics.activity(orgId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => (last.length === 30 ? last.at(-1)!.createdAt : undefined),
+  });
+}
+
+// ---------- super admin ----------
+
+export const adminKeys = {
+  all: ['admin'] as const,
+  stats: ['admin', 'stats'] as const,
+  orgs: (params: object) => ['admin', 'orgs', params] as const,
+  org: (id: string) => ['admin', 'org', id] as const,
+  users: (params: object) => ['admin', 'users', params] as const,
+  activity: ['admin', 'activity'] as const,
+};
+
+export function useAdminStats() {
+  return useQuery({ queryKey: adminKeys.stats, queryFn: api.admin.stats });
+}
+
+export function useAdminOrganizations(params: { search?: string; status?: 'active' | 'suspended'; page?: number }) {
+  return useQuery({
+    queryKey: adminKeys.orgs(params),
+    queryFn: () => api.admin.organizations(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useAdminOrganization(id: string) {
+  return useQuery({ queryKey: adminKeys.org(id), queryFn: () => api.admin.organization(id), enabled: !!id });
+}
+
+export function useAdminUsers(params: { search?: string; page?: number }) {
+  return useQuery({
+    queryKey: adminKeys.users(params),
+    queryFn: () => api.admin.users(params),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useAdminActivity() {
+  return useInfiniteQuery({
+    queryKey: adminKeys.activity,
+    queryFn: ({ pageParam }) => api.admin.activity(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length === 50 ? last.at(-1)!.createdAt : undefined),
+  });
+}
+
+/** Suspend / unsuspend / delete; refreshes every admin view afterwards. */
+export function useAdminOrgAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: { type: 'suspend'; id: string; reason?: string } | { type: 'unsuspend' | 'delete'; id: string }) => {
+      if (action.type === 'suspend') return api.admin.suspend(action.id, action.reason);
+      if (action.type === 'unsuspend') return api.admin.unsuspend(action.id);
+      return api.admin.deleteOrganization(action.id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: adminKeys.all }),
   });
 }

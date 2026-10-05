@@ -13,6 +13,8 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   'member.role_changed': 'Role changes',
   'member.removed': 'Members removed',
   'subscription.changed': 'Plan changes',
+  'organization.suspended': 'Suspensions',
+  'organization.unsuspended': 'Reinstatements',
 };
 
 /** One sentence describing an entry, e.g. "Ada archived Website relaunch". */
@@ -44,6 +46,10 @@ export function describeActivity(e: ActivityEntry): string {
       return e.actorId && e.subject?.id === e.actorId ? `${what} left` : `${who} removed ${what}`;
     case 'subscription.changed':
       return `Plan changed to ${String(meta.plan)} (${String(meta.status).replace('_', ' ')})`;
+    case 'organization.suspended':
+      return `Organization suspended${typeof meta.reason === 'string' && meta.reason ? `: ${meta.reason}` : ''}`;
+    case 'organization.unsuspended':
+      return 'Organization reinstated';
     default:
       return e.type;
   }

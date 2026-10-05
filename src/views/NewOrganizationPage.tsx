@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { Button, ErrorNotice, Field, Input } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { useCreateOrganization } from '@/lib/queries';
+import { routes } from '@/lib/routes';
 
 export function NewOrganizationPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export function NewOrganizationPage() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    create.mutate({ name }, { onSuccess: (org) => router.push(`/app/orgs/${org.id}/overview`) });
+    create.mutate({ name }, { onSuccess: (org) => router.push(routes.org(org.id, 'overview')) });
   };
 
   return (

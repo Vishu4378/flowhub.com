@@ -9,6 +9,7 @@ import { safeNext } from '@/auth/guards';
 import { Button, ErrorNotice, Field, Input, PageLoader } from '@/components/ui';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { api } from '@/lib/api';
+import { routes } from '@/lib/routes';
 
 export function RegisterPage() {
   const { signIn } = useAuth();
@@ -55,7 +56,7 @@ export function RegisterPage() {
         <>
           Already have one?{' '}
           <Link
-            href={inviteToken ? `/login?next=${encodeURIComponent(`/invite/${inviteToken}`)}` : '/login'}
+            href={inviteToken ? `/login?next=${encodeURIComponent(routes.invite(inviteToken))}` : '/login'}
             className="font-medium text-indigo-600 hover:text-indigo-500"
           >
             Sign in

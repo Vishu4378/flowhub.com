@@ -1,5 +1,11 @@
 import type {
   ActivityEntry,
+  AdminActivity,
+  AdminOrganization,
+  AdminOrganizationDetail,
+  AdminStats,
+  AdminUser,
+  Paged,
   AnalyticsOverview,
   AppNotification,
   BillingOverview,
@@ -17,7 +23,12 @@ import type {
   User,
 } from './types';
 
-const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/api`;
+/**
+ * The site is static, so the browser calls the API directly (CORS is enabled
+ * there for this origin). Set NEXT_PUBLIC_API_URL at build time in production.
+ */
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const BASE_URL = `${API_URL}/api`;
 const TOKEN_KEY = 'flowhub.token';
 
 const tokenListeners = new Set<() => void>();
@@ -98,7 +109,14 @@ async function request<T>(
 const get = <T>(path: string) => request<T>('GET', path);
 const post = <T>(path: string, body?: unknown) => request<T>('POST', path, body);
 const patch = <T>(path: string, body: unknown) => request<T>('PATCH', path, body);
-const del = (path: string) => request<void>('DELETE', path);
+const del = (path: string, body?: unknown) => request<void>('DELETE', path, body);
+
+const qs = (params: Record<string, string | number | undefined>) => {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') q.set(k, String(v));
+  const s = q.toString();
+  return s ? `?${s}` : '';
+};
 
 export const api = {
   auth: {
@@ -119,6 +137,19 @@ export const api = {
       post<Session>('/auth/reset-password', body),
     changePassword: (body: { currentPassword: string; newPassword: string }) =>
       post<void>('/auth/change-password', body),
+    exportAccount: () => get<unknown>('/auth/account/export'),
+    deleteAccount: (password: string) => del('/auth/account', { password }),
+  },
+  admin: {
+    stats: () => get<AdminStats>('/admin/stats'),
+    organizations: (params: { search?: string; status?: 'active' | 'suspended'; page?: number }) =>
+      get<Paged<AdminOrganization>>(`/admin/organizations${qs(params)}`),
+    organization: (id: string) => get<AdminOrganizationDetail>(`/admin/organizations/${id}`),
+    suspend: (id: string, reason?: string) => post(`/admin/organizations/${id}/suspend`, { reason }),
+    unsuspend: (id: string) => post(`/admin/organizations/${id}/unsuspend`),
+    deleteOrganization: (id: string) => del(`/admin/organizations/${id}`),
+    users: (params: { search?: string; page?: number }) => get<Paged<AdminUser>>(`/admin/users${qs(params)}`),
+    activity: (before?: string) => get<AdminActivity[]>(`/admin/activity${qs({ before })}`),
   },
   users: {
     updateMe: (body: { name: string }) => patch<User>('/users/me', body),
@@ -184,5 +215,7 @@ export const api = {
     ) => patch<Project>(`/organizations/${orgId}/projects/${id}`, body),
     remove: (orgId: string, id: string) =>
       del(`/organizations/${orgId}/projects/${id}`),
+    rotateApiKey: (orgId: string, id: string) =>
+      post<{ apiKey: string; project: Project }>(`/organizations/${orgId}/projects/${id}/api-key`),
   },
 };
