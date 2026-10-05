@@ -1,7 +1,9 @@
+'use client';
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, setUnauthorizedHandler, tokenStore } from '../lib/api';
-import type { Me, Session } from '../lib/types';
+import { createContext, use, useCallback, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { api, setUnauthorizedHandler, tokenStore } from '@/lib/api';
+import type { Me, Session } from '@/lib/types';
 
 interface AuthState {
   me: Me | undefined;
@@ -17,19 +19,21 @@ export const meQueryKey = ['me'] as const;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [token, setToken] = useState(tokenStore.get);
+  // The token lives in localStorage, which only exists in the browser. On the
+  // server (and the first client render) it is `undefined`, meaning "unknown",
+  // so auth state stays loading and server and client markup match.
+  const token = useSyncExternalStore(tokenStore.subscribe, tokenStore.get, () => undefined);
+  const hydrated = token !== undefined;
 
   const signOut = useCallback(() => {
     tokenStore.clear();
-    setToken(null);
     queryClient.clear();
   }, [queryClient]);
 
   const signIn = useCallback(
     (session: Session) => {
-      tokenStore.set(session.accessToken);
       queryClient.clear();
-      setToken(session.accessToken);
+      tokenStore.set(session.accessToken);
     },
     [queryClient],
   );
@@ -46,12 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthState>(
     () => ({
       me: meQuery.data,
-      isLoading: !!token && meQuery.isPending,
+      isLoading: !hydrated || (!!token && meQuery.isPending),
       isAuthenticated: !!token && !!meQuery.data,
       signIn,
       signOut,
     }),
-    [token, meQuery.data, meQuery.isPending, signIn, signOut],
+    [hydrated, token, meQuery.data, meQuery.isPending, signIn, signOut],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

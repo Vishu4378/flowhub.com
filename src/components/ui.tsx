@@ -1,4 +1,8 @@
+'use client';
+
+import Link from 'next/link';
 import {
+  use,
   useEffect,
   useId,
   useRef,
@@ -8,8 +12,10 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { ApiError } from '@/lib/api';
+import { OrgContext } from '@/lib/useOrg';
 
-const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
+export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -54,7 +60,7 @@ export function Field({
   children,
 }: {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   children: (id: string) => ReactNode;
 }) {
   const id = useId();
@@ -64,7 +70,7 @@ export function Field({
         {label}
       </label>
       {children(id)}
-      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+      {hint && <div className="text-xs text-slate-500">{hint}</div>}
     </div>
   );
 }
@@ -116,20 +122,38 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function PageLoader() {
+export function PageLoader({ fullScreen }: { fullScreen?: boolean }) {
   return (
-    <div className="flex h-64 items-center justify-center text-slate-400">
+    <div className={cx('flex items-center justify-center text-slate-400', fullScreen ? 'min-h-svh' : 'h-64')}>
       <Spinner />
     </div>
   );
 }
 
 export function ErrorNotice({ error }: { error: unknown }) {
+  const org = use(OrgContext);
   if (!error) return null;
   const message = error instanceof Error ? error.message : 'Something went wrong';
+  const planLimit = error instanceof ApiError && error.code === 'PLAN_LIMIT';
   return (
     <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-inset ring-red-200">
       {message}
+      {planLimit && org && (
+        <>
+          {' '}
+          <Link href={`/app/orgs/${org.id}/billing`} className="font-semibold underline">
+            See plans
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function SuccessNotice({ children }: { children: ReactNode }) {
+  return (
+    <div role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-200">
+      {children}
     </div>
   );
 }

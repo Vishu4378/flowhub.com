@@ -29,3 +29,15 @@ export function initials(name: string): string {
 
 export const canManage = (role: string | undefined) =>
   role === 'owner' || role === 'admin';
+
+/** Amount in the smallest currency unit (cents) → "$19" or "$19.50". */
+export function formatMoney(amount: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: amount % 100 === 0 ? 0 : 2,
+  }).format(amount / 100);
+}
+
+export const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso));

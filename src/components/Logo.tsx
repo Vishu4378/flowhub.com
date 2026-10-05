@@ -1,8 +1,11 @@
-export function Logo({ className }: { className?: string }) {
+import Image from 'next/image';
+import Link from 'next/link';
+
+export function Logo({ className, dark }: { className?: string; dark?: boolean }) {
   return (
-    <div className={`flex w-fit items-center gap-2 ${className ?? ''}`}>
-      <img src="/favicon.svg" alt="" className="size-8" />
-      <span className="text-lg font-semibold tracking-tight text-slate-900">FlowHub</span>
-    </div>
+    <Link href="/" className={`flex w-fit items-center gap-2 ${className ?? ''}`}>
+      <Image src="/logo.svg" alt="" width={32} height={32} className="size-8" unoptimized />
+      <span className={`text-lg font-semibold tracking-tight ${dark ? 'text-white' : 'text-slate-900'}`}>FlowHub</span>
+    </Link>
   );
 }

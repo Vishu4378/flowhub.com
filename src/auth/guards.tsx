@@ -1,22 +1,46 @@
-import { Navigate, Outlet, useLocation } from 'react-router';
-import { PageLoader } from '../components/ui';
+'use client';
+
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, type ReactNode } from 'react';
+import { PageLoader } from '@/components/ui';
 import { useAuth } from './AuthContext';
 
-/** Routes that need a session; bounces to /login and remembers where to return. */
-export function RequireAuth() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-  if (isLoading) return <PageLoader />;
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  return <Outlet />;
+/**
+ * Only post-login paths inside the app (or an invite link) are honoured, so a
+ * crafted ?next= can't bounce users to another site.
+ */
+export function safeNext(next: string | null): string {
+  if (!next || next.startsWith('//')) return '/app';
+  return next.startsWith('/app') || next.startsWith('/invite/') ? next : '/app';
 }
 
-/** Login and register; signed-in users go straight to the app. */
-export function GuestOnly() {
+/** Dashboard routes; bounces to /login and remembers where to return. */
+export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <PageLoader />;
-  if (isAuthenticated) return <Navigate to="/" replace />;
-  return <Outlet />;
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [isLoading, isAuthenticated, router, pathname]);
+
+  if (!isAuthenticated) return <PageLoader fullScreen />;
+  return children;
+}
+
+/** Login and register; signed-in users go on to ?next= or the app. */
+export function GuestOnly({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const next = new URLSearchParams(window.location.search).get('next');
+    router.replace(safeNext(next));
+  }, [isAuthenticated, router]);
+
+  if (isLoading || isAuthenticated) return <PageLoader fullScreen />;
+  return children;
 }

@@ -1,29 +1,67 @@
 import type {
+  ActivityEntry,
+  AnalyticsOverview,
+  AppNotification,
+  BillingOverview,
+  Invitation,
+  InvitationPreview,
   Me,
   Member,
   Organization,
   OrgRole,
+  Payment,
+  Plan,
   Project,
   ProjectStatus,
   Session,
   User,
 } from './types';
 
-const BASE_URL = `${import.meta.env.VITE_API_URL ?? ''}/api`;
+const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/api`;
 const TOKEN_KEY = 'flowhub.token';
 
+const tokenListeners = new Set<() => void>();
+const notifyToken = () => tokenListeners.forEach((listener) => listener());
+
+/** The access token in localStorage, observable for useSyncExternalStore. */
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  set: (token: string) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    notifyToken();
+  },
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    notifyToken();
+  },
+  subscribe: (listener: () => void) => {
+    tokenListeners.add(listener);
+    // Keep tabs in sync: signing out in one signs out everywhere.
+    const onStorage = (e: StorageEvent) => e.key === TOKEN_KEY && listener();
+    window.addEventListener('storage', onStorage);
+    return () => {
+      tokenListeners.delete(listener);
+      window.removeEventListener('storage', onStorage);
+    };
+  },
 };
 
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable reason, e.g. PLAN_LIMIT. */
+  readonly code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
+}
+
+/** Turns a Nest error body into one readable message. */
+export function errorMessage(data: unknown, fallback: string): string {
+  const message = (data as { message?: unknown } | null)?.message;
+  if (Array.isArray(message)) return message.join('. ');
+  return typeof message === 'string' && message ? message : fallback;
 }
 
 /** Called on any 401 so the app can drop the session. */
@@ -52,11 +90,7 @@ async function request<T>(
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status === 401 && token) onUnauthorized();
-    // Nest returns validation errors as an array of messages.
-    const message = Array.isArray(data?.message)
-      ? data.message.join('. ')
-      : (data?.message ?? res.statusText);
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code);
   }
   return data as T;
 }
@@ -74,9 +108,17 @@ export const api = {
       name: string;
       email: string;
       password: string;
-      organizationName: string;
+      organizationName?: string;
+      inviteToken?: string;
     }) => post<Session>('/auth/register', body),
     me: () => get<Me>('/auth/me'),
+    verifyEmail: (token: string) => post<void>('/auth/verify-email', { token }),
+    resendVerification: () => post<void>('/auth/verify-email/resend'),
+    forgotPassword: (email: string) => post<void>('/auth/forgot-password', { email }),
+    resetPassword: (body: { token: string; password: string }) =>
+      post<Session>('/auth/reset-password', body),
+    changePassword: (body: { currentPassword: string; newPassword: string }) =>
+      post<void>('/auth/change-password', body),
   },
   users: {
     updateMe: (body: { name: string }) => patch<User>('/users/me', body),
@@ -89,12 +131,39 @@ export const api = {
       patch<Organization>(`/organizations/${orgId}`, body),
     remove: (orgId: string) => del(`/organizations/${orgId}`),
     members: (orgId: string) => get<Member[]>(`/organizations/${orgId}/members`),
-    addMember: (orgId: string, body: { email: string; role: OrgRole }) =>
-      post<Member>(`/organizations/${orgId}/members`, body),
     updateMember: (orgId: string, userId: string, role: OrgRole) =>
       patch(`/organizations/${orgId}/members/${userId}`, { role }),
     removeMember: (orgId: string, userId: string) =>
       del(`/organizations/${orgId}/members/${userId}`),
+  },
+  invitations: {
+    list: (orgId: string) => get<Invitation[]>(`/organizations/${orgId}/invitations`),
+    create: (orgId: string, body: { email: string; role: OrgRole }) =>
+      post<Invitation>(`/organizations/${orgId}/invitations`, body),
+    revoke: (orgId: string, id: string) => del(`/organizations/${orgId}/invitations/${id}`),
+    preview: (token: string) => get<InvitationPreview>(`/invitations/${token}`),
+    accept: (token: string) => post<{ organizationId: string }>(`/invitations/${token}/accept`),
+  },
+  notifications: {
+    list: () => get<AppNotification[]>('/notifications'),
+    unreadCount: () => get<{ count: number }>('/notifications/unread-count'),
+    markRead: (id: string) => post<AppNotification>(`/notifications/${id}/read`),
+    markAllRead: () => post<void>('/notifications/read-all'),
+  },
+  billing: {
+    plans: () => get<Plan[]>('/billing/plans'),
+    overview: (orgId: string) => get<BillingOverview>(`/organizations/${orgId}/billing`),
+    checkout: (orgId: string, plan: Exclude<Plan['id'], 'free'>) =>
+      post<{ url: string }>(`/organizations/${orgId}/billing/checkout`, { plan }),
+    portal: (orgId: string) => post<{ url: string }>(`/organizations/${orgId}/billing/portal`),
+    payments: (orgId: string) => get<Payment[]>(`/organizations/${orgId}/payments`),
+  },
+  analytics: {
+    overview: (orgId: string) => get<AnalyticsOverview>(`/organizations/${orgId}/analytics/overview`),
+    activity: (orgId: string, before?: string) =>
+      get<ActivityEntry[]>(
+        `/organizations/${orgId}/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`,
+      ),
   },
   projects: {
     list: (orgId: string, params: { status?: ProjectStatus; search?: string }) => {
